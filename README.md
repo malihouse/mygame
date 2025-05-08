@@ -1,0 +1,2 @@
+# mygame
+AI wheel game
