@@ -1,0 +1,331 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI魔法转盘乐园</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0) rotate(0deg);
+      }
+
+      50% {
+        transform: translateY(-15px) rotate(5deg);
+      }
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.1);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .mascot {
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .result-card {
+      transition: transform 0.5s ease, opacity 0.5s ease;
+    }
+
+    .result-card.hidden {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+
+    canvas {
+      transition: transform 0.3s ease;
+      border: 2px solid #ffffff;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    canvas:hover {
+      transform: scale(1.08);
+    }
+
+    .wheel-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .wheel-indicator {
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 12px 18px 12px;
+      border-color: transparent transparent #e879f9 transparent;
+      margin-top: 6px;
+      margin-bottom: 3px;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    }
+
+    .button {
+      transition: all 0.3s ease;
+      border-radius: 9999px;
+    }
+
+    .button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .button:active {
+      transform: scale(0.98);
+    }
+
+    body {
+      background: linear-gradient(135deg, #f5d0fe, #bfdbfe, #fef3c7);
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-6 overflow-hidden">
+  <div
+    class="max-w-5xl w-full bg-white/95 backdrop-blur-lg rounded-3xl shadow-xl p-8 relative border border-purple-200">
+    <img src="https://api.dicebear.com/9.x/bottts/svg?seed=wheelBot" alt="魔法转盘机器人"
+      class="mascot absolute -top-20 left-1/2 -translate-x-1/2 w-24 h-24">
+    <h1 class="text-5xl font-extrabold text-purple-800 text-center mb-8 animate-pulse drop-shadow-md">
+      🎡 AI魔法转盘乐园 🎡
+    </h1>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-8 mb-10">
+      <div class="wheel-container">
+        <canvas id="roleWheel" width="160" height="160"
+          class="rounded-full bg-gradient-to-br from-pink-100 to-pink-50"></canvas>
+        <div class="wheel-indicator"></div>
+        <p class="mt-2 text-xl font-semibold text-pink-700">角色</p>
+      </div>
+      <div class="wheel-container">
+        <canvas id="sceneWheel" width="160" height="160"
+          class="rounded-full bg-gradient-to-br from-blue-100 to-blue-50"></canvas>
+        <div class="wheel-indicator"></div>
+        <p class="mt-2 text-xl font-semibold text-blue-700">场景</p>
+      </div>
+      <div class="wheel-container">
+        <canvas id="actionWheel" width="160" height="160"
+          class="rounded-full bg-gradient-to-br from-green-100 to-green-50"></canvas>
+        <div class="wheel-indicator"></div>
+        <p class="mt-2 text-xl font-semibold text-green-700">动作</p>
+      </div>
+      <div class="wheel-container">
+        <canvas id="wearWheel" width="160" height="160"
+          class="rounded-full bg-gradient-to-br from-orange-100 to-orange-50"></canvas>
+        <div class="wheel-indicator"></div>
+        <p class="mt-2 text-xl font-semibold text-orange-700">穿着</p>
+      </div>
+      <div class="wheel-container">
+        <canvas id="emotionWheel" width="160" height="160"
+          class="rounded-full bg-gradient-to-br from-indigo-100 to-indigo-50"></canvas>
+        <div class="wheel-indicator"></div>
+        <p class="mt-2 text-xl font-semibold text-indigo-700">情绪</p>
+      </div>
+    </div>
+    <div class="flex justify-center gap-6 mb-8">
+      <button onclick="spinWheels()"
+        class="button flex items-center gap-3 bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white font-bold py-4 px-8 shadow-lg">
+        <span class="text-2xl">🎰</span> 转动魔法盘
+      </button>
+      <button onclick="copyPrompt()"
+        class="button flex items-center gap-3 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-bold py-4 px-8 shadow-lg">
+        <span class="text-2xl">📋</span> 复制魔法词
+      </button>
+    </div>
+    <div id="result"
+      class="result-card bg-gradient-to-br from-yellow-50 to-yellow-100 border-4 border-purple-300 rounded-2xl p-6 text-xl font-semibold text-gray-900 text-center shadow-md min-h-[70px]">
+      快来转动魔法盘，创造你的魔法提示词吧！✨
+    </div>
+  </div>
+  <script>
+    const newRoles = ["小女孩", "小男孩", "恐龙", "长颈鹿", "企鹅", "机器人", "独角兽", "小熊", "狐狸", "猴子"];
+    const newScenes = ["森林", "太空", "海底", "山顶", "厨房", "沙漠", "冰雪王国", "天空之城", "操场", "未来城市"];
+    const newActions = ["跳舞", "画画", "吃蛋糕", "弹钢琴", "开车", "打喷嚏", "唱歌", "滑滑梯", "游泳", "看书"];
+    const newWears = ["戴帽子的", "穿裙子的", "穿宇航服的", "穿西装的", "戴眼镜的", "背着书包的", "穿睡衣的", "穿雨衣的", "戴王冠的", "披着斗篷的"];
+    const newEmotions = ["开心的", "害羞的", "生气的", "紧张的", "睡着的", "困惑的", "惊讶的", "伤心的", "得意的", "调皮的"];
+
+    const wheels = [
+      { id: 'roleWheel', items: newRoles, colors: ['#ff6b6b', '#ff8787'], label: '角色' },
+      { id: 'sceneWheel', items: newScenes, colors: ['#4dabf7', '#74c0fc'], label: '场景' },
+      { id: 'actionWheel', items: newActions, colors: ['#51cf66', '#69db7c'], label: '动作' },
+      { id: 'wearWheel', items: newWears, colors: ['#ff922b', '#ffa94d'], label: '穿着' },
+      { id: 'emotionWheel', items: newEmotions, colors: ['#a07cc5', '#b39ddb'], label: '情绪' }
+    ];
+
+    let isSpinning = false;
+
+    function drawWheel(canvas, items, colors, rotation) {
+      const ctx = canvas.getContext('2d');
+      const radius = canvas.width / 2;
+      const arc = Math.PI * 2 / items.length;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(radius, radius);
+      ctx.rotate(rotation);
+
+      for (let i = 0; i < items.length; i++) {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, i * arc, (i + 1) * arc);
+        ctx.lineTo(0, 0);
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+
+        ctx.save();
+        ctx.rotate(i * arc + arc / 2);
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px Comic Sans MS';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        let textToDraw = items[i];
+        if (textToDraw.length > 5) {
+          textToDraw = textToDraw.substring(0, 4) + "..";
+        }
+        ctx.fillText(textToDraw, radius - 10, 0);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    function spinWheels() {
+      if (isSpinning) return;
+      isSpinning = true;
+
+      const resultDiv = document.getElementById('result');
+      resultDiv.classList.add('hidden');
+
+      const spins = wheels.map(wheel => {
+        const arcDegrees = 360 / wheel.items.length;
+        const selectedIndex = Math.floor(Math.random() * wheel.items.length);
+        // 额外旋转5圈(1800度)后再到目标位置，使动画更流畅
+        const extraRotation = 1800;
+        return {
+          angle: 0,
+          speed: 0,
+          selectedIndex: selectedIndex,
+          itemsLength: wheel.items.length,
+          // 计算目标角度：额外旋转 + 选中项居中对齐
+          targetAngle: extraRotation + (90 - (selectedIndex + 0.5) * arcDegrees),
+          hasStopped: false
+        };
+      });
+
+      function animate() {
+        let allStopped = true;
+        wheels.forEach((wheel, i) => {
+          const canvas = document.getElementById(wheel.id);
+          if (!spins[i].hasStopped) {
+            // 计算当前角度与目标角度的差值
+            const angleDiff = spins[i].targetAngle - spins[i].angle;
+
+            // 如果差值小于阈值，则停止动画
+            if (Math.abs(angleDiff) < 0.5) {
+              spins[i].angle = spins[i].targetAngle;
+              spins[i].hasStopped = true;
+            } else {
+              // 使用缓动函数计算速度
+              spins[i].speed = angleDiff * 0.08;
+              spins[i].angle += spins[i].speed;
+              allStopped = false;
+            }
+
+            drawWheel(canvas, wheel.items, wheel.colors, spins[i].angle * Math.PI / 180);
+          }
+        });
+
+        if (allStopped) {
+          isSpinning = false;
+          const prompt = `${wheels[3].items[spins[3].selectedIndex]} ${wheels[4].items[spins[4].selectedIndex]}的${wheels[0].items[spins[0].selectedIndex]}，在${wheels[1].items[spins[1].selectedIndex]}${wheels[2].items[spins[2].selectedIndex]}。`;
+          // const prompt = `${wheels[0].items[spins[0].selectedIndex]}`;
+
+          resultDiv.innerText = prompt;
+          resultDiv.classList.remove('hidden');
+          confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 }, colors: ['#ff69b4', '#00ffcc', '#ffd700', '#1e90ff', '#a07cc5'] });
+          playSound();
+        } else {
+          requestAnimationFrame(animate);
+        }
+      }
+      animate();
+    }
+
+    function copyPrompt() {
+      const text = document.getElementById('result').innerText;
+      if (text === "快来转动魔法盘，创造你的魔法提示词吧！✨") {
+        alert("请先转动魔法盘生成提示词哦！");
+        return;
+      }
+      navigator.clipboard.writeText(text).then(() => {
+        alert("魔法提示词已复制到你的魔法书啦！✨");
+        confetti({ particleCount: 80, spread: 70, colors: ['#ff69b4', '#ffd700'] });
+      }).catch(() => {
+        alert("复制失败，请手动复制。");
+      });
+    }
+
+    function playSound() {
+      const audio = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_26399abd85.mp3');
+      audio.play().catch(err => console.log('Audio playback failed:', err));
+    }
+
+    wheels.forEach(wheel => {
+      const canvas = document.getElementById(wheel.id);
+      drawWheel(canvas, wheel.items, wheel.colors, 0);
+    });
+  </script>
+</body>
+
+</html>
+<script type="text/javascript">
+  var gk_isXlsx = false;
+  var gk_xlsxFileLookup = {};
+  var gk_fileData = {};
+  function filledCell(cell) {
+    return cell !== '' && cell != null;
+  }
+  function loadFileData(filename) {
+    if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+      try {
+        var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+        var firstSheetName = workbook.SheetNames[0];
+        var worksheet = workbook.Sheets[firstSheetName];
+
+        // Convert sheet to JSON to filter blank rows
+        var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+        // Filter out blank rows (rows where all cells are empty, null, or undefined)
+        var filteredData = jsonData.filter(row => row.some(filledCell));
+
+        // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+        var headerRowIndex = filteredData.findIndex((row, index) =>
+          row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+        );
+        // Fallback
+        if (headerRowIndex === -1 || headerRowIndex > 25) {
+          headerRowIndex = 0;
+        }
+
+        // Convert filtered JSON back to CSV
+        var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+        csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+        return csv;
+      } catch (e) {
+        console.error(e);
+        return "";
+      }
+    }
+    return gk_fileData[filename] || "";
+  }
+</script>
